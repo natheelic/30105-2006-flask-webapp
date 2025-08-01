@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>เพิ่มข้อมูล</h2>
+<form action="{{ url_for('submit_data') }}" method="post">
+    <label for="data_input">Enter Data:</label><br>
+    <input type="text" id="data_input" name="data_input" placeholder="ใส่ข้อมูลที่นี่"><br><br>
+    <input type="submit" value="Submit">
+</form>
+{% endblock %}
