@@ -186,7 +186,7 @@
                                 </td>
                                 <td class="humidity">
                                     {% if record.humidity %}
-                                        {{ "%.1f%"|format(record.humidity) }}
+                                        {{ "%.1f%%"|format(record.humidity) }}
                                     {% else %}
                                         <em>N/A</em>
                                     {% endif %}

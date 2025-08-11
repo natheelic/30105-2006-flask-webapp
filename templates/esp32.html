@@ -3,7 +3,23 @@
 {% block content %}
 <style>
     .dashboard-container {
-        max-width: 1200px;
+        max        <div clas        <div class="stat-card">
+            <div class="stat-label">💧 Latest Humidity</div>
+            <div class="stat-value humidity">
+                {{ ("%.1f%%"|format(esp32_data[0].humidity)) if esp32_data[0].humidity else 'N/A' }}
+            </div>
+        </div>t-card">
+            <div class="stat-label">🌡️ Latest Temperature</div>
+            <div class="stat-value temperature">
+                {{ ("%.1f°C"|format(esp32_data[0].temperature)) if esp32_data[0].temperature else 'N/A' }}
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">💧 Latest Humidity</div>
+            <div class="stat-value humidity">
+                {{ ("%.1f%%"|format(esp32_data[0].humidity)) if esp32_data[0].humidity else 'N/A' }}
+            </div>
+        </div>px;
         margin: 0 auto;
         padding: 20px;
     }
@@ -135,7 +151,7 @@
         <div class="stat-card">
             <div class="stat-label">� Latest Humidity</div>
             <div class="stat-value humidity">
-                {{ "%.1f%"|format(esp32_data[0].humidity) if esp32_data[0].humidity else 'N/A' }}
+                {{ (esp32_data[0].humidity|string + '%') if esp32_data[0].humidity else 'N/A' }}
             </div>
         </div>
         <div class="stat-card">
@@ -176,7 +192,7 @@
                     </td>
                     <td class="humidity">
                         {% if record.humidity %}
-                            {{ "%.1f%"|format(record.humidity) }}
+                            {{ "%.1f%%"|format(record.humidity) }}
                         {% else %}
                             <em>N/A</em>
                         {% endif %}

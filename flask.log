@@ -1,0 +1,7 @@
+INFO:database:Database iot_webapp created or already exists
+INFO:database:All tables created successfully
+INFO:__main__:Database initialized successfully
+ * Serving Flask app 'app'
+ * Debug mode: on
+Address already in use
+Port 4000 is in use by another program. Either identify and stop that program, or start the server with a different port.
