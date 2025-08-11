@@ -1,5 +1,105 @@
-{% extends 'base.html' %}
-{% block content %}
-<h2>ESP32 Page</h2>
-<p>ข้อมูลที่เชื่อมต่อกับอุปกรณ์ ESP32 จะแสดงหรือรับที่นี่</p>
-{% endblock %}
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Data - IoT Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .data-table th, .data-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .data-table th {
+            background-color: #f2f2f2;
+        }
+        .refresh-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        .status-online { background-color: #4CAF50; }
+        .status-offline { background-color: #f44336; }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    
+    <div class="container">
+        <h1>📡 ESP32 Data Dashboard</h1>
+        
+        <div class="status-section">
+            <h3>
+                <span class="status-indicator status-online"></span>
+                Database Status: Connected
+            </h3>
+        </div>
+        
+        <button class="refresh-btn" onclick="location.reload()">🔄 Refresh Data</button>
+        
+        {% if esp32_data %}
+            <h3>📊 Latest ESP32 Readings ({{ esp32_data|length }} records)</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>🌡️ Temperature (°C)</th>
+                        <th>💧 Humidity (%)</th>
+                        <th>📱 Device ID</th>
+                        <th>⏰ Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in esp32_data %}
+                    <tr>
+                        <td>{{ record.id }}</td>
+                        <td>{{ record.temperature or 'N/A' }}</td>
+                        <td>{{ record.humidity or 'N/A' }}</td>
+                        <td>{{ record.device_id or 'Unknown' }}</td>
+                        <td>{{ record.timestamp.strftime('%Y-%m-%d %H:%M:%S') if record.timestamp else 'N/A' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="no-data">
+                <h3>📭 No ESP32 data available</h3>
+                <p>Waiting for ESP32 to send data...</p>
+                <p>API Endpoint: <code>/api/esp32/data</code></p>
+            </div>
+        {% endif %}
+        
+        <div class="api-info">
+            <h3>🔧 API Information</h3>
+            <ul>
+                <li><strong>POST</strong> /api/esp32/data - Send data from ESP32</li>
+                <li><strong>GET</strong> /api/esp32/data - Retrieve ESP32 data</li>
+                <li><strong>GET</strong> /api/health - Health check</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        // Auto-refresh ทุก 30 วินาที
+        setInterval(function() {
+            location.reload();
+        }, 30000);
+    </script>
+</body>
+</html>
