@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
 from database import Database
 from config import Config
 import logging
@@ -40,19 +40,37 @@ def add_data():
 def about_me():
     return render_template('about_me.html')
 
+@app.route('/data-history')
+def data_history():
+    """หน้าสำหรับดูประวัติข้อมูลทั้งหมด"""
+    esp32_data = db.get_esp32_data(100)
+    user_data = db.get_user_data(50) if hasattr(db, 'get_user_data') else []
+    stats = db.get_database_stats() if hasattr(db, 'get_database_stats') else {}
+    
+    return render_template('data_history.html', 
+                         esp32_data=esp32_data, 
+                         user_data=user_data,
+                         stats=stats)
+
 @app.route('/submit-data', methods=['POST'])
 def submit_data():
-    data_from_input = request.form.get('data_input', '')
+    data_from_input = request.form.get('data_input', '').strip()
     client_ip = request.remote_addr
+    
+    if not data_from_input:
+        flash('กรุณากรอกข้อมูล', 'error')
+        return redirect(url_for('add_data'))
     
     # บันทึกลงฐานข้อมูล
     record_id = db.insert_user_data(data_from_input, client_ip)
     
     if record_id:
         logger.info(f"User data saved with ID: {record_id}")
+        flash('บันทึกข้อมูลเรียบร้อยแล้ว!', 'success')
         status = "success"
     else:
         logger.error("Failed to save user data")
+        flash('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error')
         status = "error"
     
     return render_template('submit_data.html', 
@@ -64,6 +82,9 @@ def submit_data():
 def api_esp32_data():
     try:
         data = request.json
+        if not data:
+            return jsonify({"status": "error", "message": "No data received"}), 400
+        
         logger.info(f"📡 Received from ESP32: {data}")
         
         # บันทึกลงฐานข้อมูล
@@ -113,23 +134,73 @@ def get_esp32_data():
             "message": str(e)
         }), 500
 
+@app.route('/api/esp32/latest')
+def api_esp32_latest():
+    """API สำหรับดึงข้อมูลล่าสุดจาก ESP32"""
+    try:
+        data = db.get_latest_esp32_data() if hasattr(db, 'get_latest_esp32_data') else None
+        
+        if data:
+            return jsonify({
+                "status": "success",
+                "data": data
+            }), 200
+        else:
+            return jsonify({
+                "status": "no_data",
+                "message": "No ESP32 data found"
+            }), 404
+            
+    except Exception as e:
+        logger.error(f"Error fetching latest ESP32 data: {e}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
 @app.route('/api/health')
 def health_check():
     """Health check endpoint"""
-    connection = db.get_connection()
-    if connection:
-        connection.close()
-        return jsonify({
-            "status": "healthy",
-            "database": "connected",
-            "timestamp": datetime.now().isoformat()
-        }), 200
-    else:
+    try:
+        connection = db.get_connection()
+        if connection:
+            # Test database query
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
+            connection.close()
+            
+            # Get database stats
+            stats = db.get_database_stats() if hasattr(db, 'get_database_stats') else {}
+            
+            return jsonify({
+                "status": "healthy",
+                "database": "connected",
+                "timestamp": datetime.now().isoformat(),
+                "stats": stats
+            }), 200
+        else:
+            return jsonify({
+                "status": "unhealthy",
+                "database": "disconnected",
+                "timestamp": datetime.now().isoformat()
+            }), 503
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
         return jsonify({
             "status": "unhealthy",
-            "database": "disconnected",
+            "database": "error",
+            "error": str(e),
             "timestamp": datetime.now().isoformat()
         }), 503
+
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return render_template('500.html'), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=4000, debug=True)

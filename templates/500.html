@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% set title = "Server Error" %}
+{% block content %}
+<style>
+    .error-container {
+        text-align: center;
+        padding: 60px 20px;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    .error-code {
+        font-size: 8em;
+        font-weight: bold;
+        color: #dc3545;
+        margin-bottom: 20px;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    }
+    .error-message {
+        font-size: 1.5em;
+        color: #6c757d;
+        margin-bottom: 30px;
+    }
+    .error-description {
+        color: #868e96;
+        margin-bottom: 40px;
+        line-height: 1.6;
+    }
+    .back-button {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        color: white;
+        padding: 12px 30px;
+        border: none;
+        border-radius: 25px;
+        text-decoration: none;
+        font-size: 16px;
+        display: inline-block;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    .back-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        color: white;
+        text-decoration: none;
+    }
+    .navigation-links {
+        margin-top: 30px;
+    }
+    .navigation-links a {
+        color: #dc3545;
+        text-decoration: none;
+        margin: 0 15px;
+        font-weight: 500;
+    }
+    .navigation-links a:hover {
+        text-decoration: underline;
+    }
+</style>
+
+<div class="error-container">
+    <div class="error-code">500</div>
+    <h1 class="error-message">Internal Server Error</h1>
+    <p class="error-description">
+        Something went wrong on our server. This is usually a temporary issue.
+        <br>Please try again in a few moments or contact the administrator.
+    </p>
+    
+    <a href="{{ url_for('home') }}" class="back-button">
+        <i class="fas fa-home"></i> Back to Home
+    </a>
+    
+    <div class="navigation-links">
+        <a href="{{ url_for('esp32') }}">
+            <i class="fas fa-chart-line"></i> ESP32 Dashboard
+        </a>
+        <a href="/api/health" target="_blank">
+            <i class="fas fa-heartbeat"></i> Check System Health
+        </a>
+        <a href="{{ url_for('about_me') }}">
+            <i class="fas fa-user"></i> About
+        </a>
+    </div>
+</div>
+{% endblock %}
