@@ -1,0 +1,684 @@
+{% extends "base.html" %}
+
+{% block title %}{{ device.device_name }} - Device Details{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Device Header -->
+    <div class="device-header">
+        <div class="header-info">
+            <h1>
+                {% if device.device_type == 'ESP32' %}
+                    <i class="fab fa-raspberry-pi"></i>
+                {% elif device.device_type == 'PICO_WH' %}
+                    <i class="fas fa-microchip"></i>
+                {% else %}
+                    <i class="fas fa-cpu"></i>
+                {% endif %}
+                {{ device.device_name }}
+            </h1>
+            <span class="device-type-badge {{ device.device_type.lower() }}">
+                {{ device.device_type }}
+            </span>
+        </div>
+        
+        <div class="header-actions">
+            <a href="{{ url_for('device_management') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Devices
+            </a>
+            <a href="{{ url_for('download_device_code', device_id=device.id) }}" class="btn btn-success">
+                <i class="fas fa-download"></i> Download Code
+            </a>
+            <a href="{{ url_for('download_uploader', device_id=device.id) }}" class="btn btn-warning">
+                <i class="fas fa-upload"></i> Get Uploader
+            </a>
+        </div>
+    </div>
+
+    <div class="device-content">
+        <!-- Device Information -->
+        <div class="info-section">
+            <div class="device-overview">
+                <h2><i class="fas fa-info-circle"></i> Device Information</h2>
+                
+                <div class="info-grid">
+                    <div class="info-card">
+                        <h3>Basic Info</h3>
+                        <div class="info-items">
+                            <div class="info-item">
+                                <span class="label">Device Name:</span>
+                                <span class="value">{{ device.device_name }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Device Type:</span>
+                                <span class="value">{{ device.device_type }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Description:</span>
+                                <span class="value">{{ device.description or 'No description provided' }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Created:</span>
+                                <span class="value">{{ device.created_at.strftime('%Y-%m-%d %H:%M') if device.created_at else 'Unknown' }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <h3>WiFi Configuration</h3>
+                        <div class="info-items">
+                            <div class="info-item">
+                                <span class="label">SSID:</span>
+                                <span class="value">{{ device.wifi_ssid or 'Not configured' }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Password:</span>
+                                <span class="value">
+                                    {% if device.wifi_password %}
+                                        <span class="password-hidden">●●●●●●●●</span>
+                                        <button class="toggle-password" onclick="togglePassword()">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <span class="password-visible" style="display: none;">{{ device.wifi_password }}</span>
+                                    {% else %}
+                                        Not set
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Template:</span>
+                                <span class="value">{{ device.program_template }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if device.pin_config %}
+                    <div class="info-card">
+                        <h3>Pin Configuration</h3>
+                        <div class="pin-layout">
+                            {% for pin_name, pin_value in device.pin_config.items() %}
+                            <div class="pin-item">
+                                <div class="pin-icon">
+                                    {% if 'temperature' in pin_name %}
+                                        <i class="fas fa-thermometer-half text-danger"></i>
+                                    {% elif 'light' in pin_name %}
+                                        <i class="fas fa-sun text-warning"></i>
+                                    {% elif 'led' in pin_name %}
+                                        <i class="fas fa-lightbulb text-info"></i>
+                                    {% elif 'relay' in pin_name %}
+                                        <i class="fas fa-toggle-on text-success"></i>
+                                    {% else %}
+                                        <i class="fas fa-microchip"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="pin-info">
+                                    <span class="pin-name">{{ pin_name.replace('_', ' ').title() }}</span>
+                                    <span class="pin-value">GPIO {{ pin_value }}</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if device.sensor_config %}
+                    <div class="info-card">
+                        <h3>Sensor Configuration</h3>
+                        <div class="sensor-status">
+                            {% for sensor_name, enabled in device.sensor_config.items() %}
+                            <div class="sensor-item {{ 'enabled' if enabled else 'disabled' }}">
+                                <div class="sensor-icon">
+                                    {% if 'temperature' in sensor_name %}
+                                        <i class="fas fa-thermometer-half"></i>
+                                    {% elif 'humidity' in sensor_name %}
+                                        <i class="fas fa-tint"></i>
+                                    {% elif 'light' in sensor_name %}
+                                        <i class="fas fa-sun"></i>
+                                    {% elif 'soil' in sensor_name %}
+                                        <i class="fas fa-seedling"></i>
+                                    {% else %}
+                                        <i class="fas fa-cog"></i>
+                                    {% endif %}
+                                </div>
+                                <span class="sensor-name">
+                                    {{ sensor_name.replace('_enabled', '').replace('_', ' ').title() }}
+                                </span>
+                                <span class="sensor-status-badge">
+                                    {% if enabled %}
+                                        <i class="fas fa-check-circle text-success"></i> Enabled
+                                    {% else %}
+                                        <i class="fas fa-times-circle text-danger"></i> Disabled
+                                    {% endif %}
+                                </span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Generated Code -->
+            <div class="code-section">
+                <h2><i class="fas fa-code"></i> Generated MicroPython Code</h2>
+                
+                <div class="code-controls">
+                    <button class="btn btn-primary" onclick="copyCode()">
+                        <i class="fas fa-copy"></i> Copy Code
+                    </button>
+                    <button class="btn btn-secondary" onclick="toggleCodeView()">
+                        <i class="fas fa-expand"></i> Full Screen
+                    </button>
+                </div>
+
+                <div class="code-container">
+                    <pre id="generated-code"><code class="python">{{ code }}</code></pre>
+                </div>
+            </div>
+
+            <!-- Setup Instructions -->
+            <div class="instructions-section">
+                <h2><i class="fas fa-list-ol"></i> Setup Instructions</h2>
+                
+                <div class="instruction-tabs">
+                    <button class="tab-button active" onclick="showTab('upload')">
+                        <i class="fas fa-upload"></i> Upload Code
+                    </button>
+                    <button class="tab-button" onclick="showTab('manual')">
+                        <i class="fas fa-tools"></i> Manual Setup
+                    </button>
+                    <button class="tab-button" onclick="showTab('troubleshoot')">
+                        <i class="fas fa-question-circle"></i> Troubleshooting
+                    </button>
+                </div>
+
+                <div class="tab-content">
+                    <div id="upload-tab" class="tab-panel active">
+                        <h3>Automatic Upload (Recommended)</h3>
+                        <ol class="instruction-list">
+                            <li>
+                                <strong>Download Uploader Script:</strong>
+                                <p>Click "Get Uploader" button to download the Python uploader script.</p>
+                            </li>
+                            <li>
+                                <strong>Install Required Tools:</strong>
+                                <pre><code>pip install esptool ampy pyserial</code></pre>
+                            </li>
+                            <li>
+                                <strong>Connect Device:</strong>
+                                <p>Connect your {{ device.device_type }} to computer via USB cable.</p>
+                            </li>
+                            <li>
+                                <strong>Run Uploader:</strong>
+                                <pre><code>python {{ device.device_name }}_uploader.py</code></pre>
+                            </li>
+                            <li>
+                                <strong>Follow Prompts:</strong>
+                                <p>The uploader will guide you through the process automatically.</p>
+                            </li>
+                        </ol>
+                    </div>
+
+                    <div id="manual-tab" class="tab-panel">
+                        <h3>Manual Setup</h3>
+                        <ol class="instruction-list">
+                            <li>
+                                <strong>Flash MicroPython:</strong>
+                                <p>First, flash MicroPython firmware to your device.</p>
+                                {% if device.device_type == 'ESP32' %}
+                                <pre><code>esptool.py --port /dev/ttyUSB0 erase_flash
+esptool.py --port /dev/ttyUSB0 write_flash -z 0x1000 esp32-micropython.bin</code></pre>
+                                {% elif device.device_type == 'PICO_WH' %}
+                                <p>Hold BOOTSEL button, connect USB, copy .uf2 file to RPI-RP2 drive.</p>
+                                {% endif %}
+                            </li>
+                            <li>
+                                <strong>Upload Code:</strong>
+                                <p>Use ampy to upload the generated code:</p>
+                                <pre><code>ampy --port /dev/ttyUSB0 put main.py</code></pre>
+                            </li>
+                            <li>
+                                <strong>Configure WiFi:</strong>
+                                <p>Edit the code to set your WiFi credentials and server IP.</p>
+                            </li>
+                            <li>
+                                <strong>Reset Device:</strong>
+                                <p>Press reset button or power cycle the device.</p>
+                            </li>
+                        </ol>
+                    </div>
+
+                    <div id="troubleshoot-tab" class="tab-panel">
+                        <h3>Troubleshooting</h3>
+                        <div class="troubleshoot-items">
+                            <div class="troubleshoot-item">
+                                <h4><i class="fas fa-exclamation-triangle"></i> Device Not Found</h4>
+                                <ul>
+                                    <li>Check USB cable connection</li>
+                                    <li>Install device drivers (CP2102, CH340)</li>
+                                    <li>Try different USB port</li>
+                                    <li>Check device is in bootloader mode</li>
+                                </ul>
+                            </div>
+                            <div class="troubleshoot-item">
+                                <h4><i class="fas fa-wifi"></i> WiFi Connection Issues</h4>
+                                <ul>
+                                    <li>Verify WiFi SSID and password</li>
+                                    <li>Check signal strength</li>
+                                    <li>Ensure 2.4GHz network (not 5GHz)</li>
+                                    <li>Check for special characters in credentials</li>
+                                </ul>
+                            </div>
+                            <div class="troubleshoot-item">
+                                <h4><i class="fas fa-server"></i> Server Connection Problems</h4>
+                                <ul>
+                                    <li>Update SERVER_URL in code with correct IP</li>
+                                    <li>Check server is running on port 4000</li>
+                                    <li>Verify firewall settings</li>
+                                    <li>Test API endpoint manually</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.device-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+    margin-bottom: 2rem;
+}
+
+.header-info h1 {
+    margin: 0;
+    font-size: 2.2rem;
+}
+
+.device-type-badge {
+    padding: 0.5rem 1rem;
+    background-color: rgba(255,255,255,0.2);
+    border-radius: 25px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    margin-left: 1rem;
+}
+
+.header-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.device-content {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+}
+
+.info-section {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.info-section h2 {
+    color: #333;
+    margin-bottom: 2rem;
+    font-size: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #f8f9fa;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+
+.info-card {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 1.5rem;
+    border: 1px solid #e9ecef;
+}
+
+.info-card h3 {
+    margin: 0 0 1rem 0;
+    color: #333;
+    font-size: 1.1rem;
+}
+
+.info-items {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.label {
+    font-weight: 600;
+    color: #666;
+}
+
+.value {
+    font-weight: 500;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.toggle-password {
+    background: none;
+    border: none;
+    color: #007bff;
+    cursor: pointer;
+    padding: 0.2rem;
+}
+
+.pin-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.pin-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.pin-icon {
+    font-size: 1.5rem;
+}
+
+.pin-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.pin-name {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.pin-value {
+    color: #666;
+    font-size: 0.8rem;
+}
+
+.sensor-status {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.sensor-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.sensor-item.enabled {
+    border-left: 4px solid #28a745;
+}
+
+.sensor-item.disabled {
+    border-left: 4px solid #dc3545;
+    opacity: 0.7;
+}
+
+.sensor-icon {
+    font-size: 1.3rem;
+}
+
+.sensor-name {
+    flex: 1;
+    font-weight: 600;
+}
+
+.code-section {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.code-controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.code-container {
+    background: #2d3748;
+    border-radius: 8px;
+    overflow: hidden;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.code-container pre {
+    margin: 0;
+    padding: 1.5rem;
+    background: transparent;
+    color: #e2e8f0;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.instructions-section {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.instruction-tabs {
+    display: flex;
+    margin-bottom: 2rem;
+    border-bottom: 2px solid #f8f9fa;
+}
+
+.tab-button {
+    background: none;
+    border: none;
+    padding: 1rem 2rem;
+    cursor: pointer;
+    font-weight: 600;
+    color: #666;
+    transition: all 0.3s ease;
+    border-bottom: 3px solid transparent;
+}
+
+.tab-button.active {
+    color: #007bff;
+    border-bottom-color: #007bff;
+}
+
+.tab-button:hover {
+    background-color: #f8f9fa;
+}
+
+.tab-panel {
+    display: none;
+}
+
+.tab-panel.active {
+    display: block;
+}
+
+.instruction-list {
+    padding-left: 2rem;
+}
+
+.instruction-list li {
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+}
+
+.instruction-list strong {
+    color: #333;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.instruction-list pre {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 5px;
+    border-left: 4px solid #007bff;
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+.troubleshoot-items {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.troubleshoot-item {
+    padding: 1.5rem;
+    background: #f8f9fa;
+    border-radius: 10px;
+    border-left: 4px solid #ffc107;
+}
+
+.troubleshoot-item h4 {
+    margin: 0 0 1rem 0;
+    color: #333;
+}
+
+.troubleshoot-item ul {
+    margin: 0;
+    padding-left: 2rem;
+}
+
+.troubleshoot-item li {
+    margin-bottom: 0.5rem;
+    color: #555;
+}
+
+@media (max-width: 768px) {
+    .device-header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+    
+    .header-actions {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .pin-layout {
+        grid-template-columns: 1fr;
+    }
+    
+    .instruction-tabs {
+        flex-direction: column;
+    }
+    
+    .tab-button {
+        text-align: left;
+    }
+}
+</style>
+
+<script>
+function copyCode() {
+    const code = document.getElementById('generated-code').textContent;
+    navigator.clipboard.writeText(code).then(function() {
+        const btn = event.target.closest('button');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        btn.classList.add('btn-success');
+        btn.classList.remove('btn-primary');
+        
+        setTimeout(function() {
+            btn.innerHTML = originalText;
+            btn.classList.add('btn-primary');
+            btn.classList.remove('btn-success');
+        }, 2000);
+    });
+}
+
+function toggleCodeView() {
+    const container = document.querySelector('.code-container');
+    const btn = event.target.closest('button');
+    
+    if (container.style.maxHeight === 'none') {
+        container.style.maxHeight = '500px';
+        btn.innerHTML = '<i class="fas fa-expand"></i> Full Screen';
+    } else {
+        container.style.maxHeight = 'none';
+        btn.innerHTML = '<i class="fas fa-compress"></i> Minimize';
+    }
+}
+
+function togglePassword() {
+    const hiddenSpan = document.querySelector('.password-hidden');
+    const visibleSpan = document.querySelector('.password-visible');
+    const toggleBtn = document.querySelector('.toggle-password i');
+    
+    if (visibleSpan.style.display === 'none') {
+        hiddenSpan.style.display = 'none';
+        visibleSpan.style.display = 'inline';
+        toggleBtn.classList.remove('fa-eye');
+        toggleBtn.classList.add('fa-eye-slash');
+    } else {
+        hiddenSpan.style.display = 'inline';
+        visibleSpan.style.display = 'none';
+        toggleBtn.classList.remove('fa-eye-slash');
+        toggleBtn.classList.add('fa-eye');
+    }
+}
+
+function showTab(tabName) {
+    // Hide all tab panels
+    const panels = document.querySelectorAll('.tab-panel');
+    panels.forEach(panel => panel.classList.remove('active'));
+    
+    // Remove active class from all buttons
+    const buttons = document.querySelectorAll('.tab-button');
+    buttons.forEach(button => button.classList.remove('active'));
+    
+    // Show selected tab
+    document.getElementById(tabName + '-tab').classList.add('active');
+    event.target.classList.add('active');
+}
+</script>
+{% endblock %}

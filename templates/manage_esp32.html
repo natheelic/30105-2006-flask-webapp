@@ -1,0 +1,695 @@
+{% extends "base.html" %}
+
+{% block title %}จัดการ ESP32 Devices{% endblock %}
+
+{% block content %}
+<style>
+    .device-card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 10px 0;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+    .device-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    .device-status {
+        display: inline-block;
+        padding: 5px 10px;
+        border-radius: 15px;
+        color: white;
+        font-size: 0.8em;
+        font-weight: bold;
+    }
+    .status-online {
+        background-color: #28a745;
+    }
+    .status-offline {
+        background-color: #dc3545;
+    }
+    .pin-config {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 10px 0;
+        border-left: 4px solid #007bff;
+    }
+    .btn-group {
+        gap: 10px;
+    }
+    .modal-lg {
+        max-width: 800px;
+    }
+    .code-editor {
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+        background: #2d3748;
+        color: #e2e8f0;
+        border-radius: 5px;
+        padding: 15px;
+        height: 300px;
+        overflow-y: auto;
+        white-space: pre;
+    }
+    .pin-row {
+        display: flex;
+        align-items: center;
+        margin: 10px 0;
+        padding: 10px;
+        background: #f1f3f4;
+        border-radius: 5px;
+    }
+    .program-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 10px 0;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .program-card:hover {
+        background-color: #f8f9fa;
+        border-color: #007bff;
+    }
+    .program-card.selected {
+        background-color: #e3f2fd;
+        border-color: #2196f3;
+    }
+</style>
+
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-microchip"></i> จัดการ ESP32 Devices</h2>
+                <div>
+                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addDeviceModal">
+                        <i class="fas fa-plus"></i> เพิ่ม Device
+                    </button>
+                    <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#programLibraryModal">
+                        <i class="fas fa-code"></i> คลังโปรแกรม
+                    </button>
+                </div>
+            </div>
+
+            <!-- Device Grid -->
+            <div class="row">
+                {% for device in devices %}
+                <div class="col-lg-6 col-md-12">
+                    <div class="device-card">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <h5>{{ device.device_name }}</h5>
+                                <small class="text-muted">ID: {{ device.device_id }}</small>
+                            </div>
+                            {% if device.last_seen and (now() - device.last_seen).total_seconds() < 300 %}
+                                <span class="device-status status-online">Online</span>
+                            {% else %}
+                                <span class="device-status status-offline">Offline</span>
+                            {% endif %}
+                        </div>
+
+                        <p class="text-muted">{{ device.description or 'ไม่มีคำอธิบาย' }}</p>
+                        
+                        {% if device.location %}
+                        <p><i class="fas fa-map-marker-alt"></i> <strong>ตำแหน่ง:</strong> {{ device.location }}</p>
+                        {% endif %}
+                        
+                        {% if device.last_seen %}
+                        <p><i class="fas fa-clock"></i> <strong>ออนไลน์ล่าสุด:</strong> {{ device.last_seen.strftime('%d/%m/%Y %H:%M') }}</p>
+                        {% endif %}
+
+                        <!-- Pin Configuration -->
+                        {% if device.pin_config %}
+                        <div class="pin-config">
+                            <h6><i class="fas fa-cogs"></i> การตั้งค่าขา (Pins):</h6>
+                            {% for pin_name, pin_data in device.pin_config.items() %}
+                            <div class="pin-row">
+                                <strong>{{ pin_name }}:</strong>
+                                <span class="ms-2">Pin {{ pin_data.pin }} ({{ pin_data.type }})</span>
+                                {% if pin_data.description %}
+                                <small class="text-muted ms-2">- {{ pin_data.description }}</small>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <div class="btn-group mt-3">
+                            <button class="btn btn-primary btn-sm" onclick="editDevice('{{ device.device_id }}')">
+                                <i class="fas fa-edit"></i> แก้ไข
+                            </button>
+                            <button class="btn btn-warning btn-sm" onclick="uploadProgram('{{ device.device_id }}')">
+                                <i class="fas fa-upload"></i> อัพโหลดโปรแกรม
+                            </button>
+                            <button class="btn btn-info btn-sm" onclick="viewProgram('{{ device.device_id }}')">
+                                <i class="fas fa-eye"></i> ดูโปรแกรม
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteDevice('{{ device.device_id }}')">
+                                <i class="fas fa-trash"></i> ลบ
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not devices %}
+                <div class="col-12">
+                    <div class="text-center py-5">
+                        <i class="fas fa-microchip fa-3x text-muted mb-3"></i>
+                        <h4 class="text-muted">ยังไม่มี ESP32 Device</h4>
+                        <p class="text-muted">เริ่มต้นด้วยการเพิ่ม Device แรกของคุณ</p>
+                        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addDeviceModal">
+                            <i class="fas fa-plus"></i> เพิ่ม Device แรก
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Device Modal -->
+<div class="modal fade" id="addDeviceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deviceModalTitle">เพิ่ม ESP32 Device</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="deviceForm">
+                <div class="modal-body">
+                    <input type="hidden" id="editDeviceId" name="edit_device_id">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Device ID *</label>
+                                <input type="text" class="form-control" id="deviceId" name="device_id" required>
+                                <small class="text-muted">ใช้สำหรับระบุ Device (ไม่สามารถแก้ไขได้)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">ชื่อ Device *</label>
+                                <input type="text" class="form-control" id="deviceName" name="device_name" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">คำอธิบาย</label>
+                        <textarea class="form-control" id="deviceDescription" name="description" rows="3"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">ตำแหน่ง</label>
+                        <input type="text" class="form-control" id="deviceLocation" name="location">
+                    </div>
+
+                    <!-- Pin Configuration -->
+                    <div class="mb-3">
+                        <label class="form-label">การตั้งค่าขา (Pin Configuration)</label>
+                        <div id="pinConfiguration">
+                            <!-- Pin configurations will be added here -->
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addPinConfig()">
+                            <i class="fas fa-plus"></i> เพิ่มการตั้งค่าขา
+                        </button>
+                    </div>
+
+                    <!-- Program Code -->
+                    <div class="mb-3">
+                        <label class="form-label">โปรแกรม Arduino Code</label>
+                        <div class="d-flex justify-content-between mb-2">
+                            <small class="text-muted">เขียนหรือวางโค้ด Arduino สำหรับ ESP32</small>
+                            <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#programLibraryModal" data-bs-dismiss="modal">
+                                <i class="fas fa-book"></i> เลือกจากคลัง
+                            </button>
+                        </div>
+                        <textarea class="form-control code-editor" id="programCode" name="program_code" rows="15" placeholder="// Arduino Code สำหรับ ESP32
+#include <WiFi.h>
+
+void setup() {
+    Serial.begin(115200);
+    // โค้ดเริ่มต้นของคุณ
+}
+
+void loop() {
+    // โค้ดหลักของคุณ
+}"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save"></i> บันทึก
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Program Library Modal -->
+<div class="modal fade" id="programLibraryModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">คลังโปรแกรม ESP32</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6>โปรแกรมที่มีอยู่</h6>
+                        <div id="programList">
+                            <!-- Programs will be loaded here -->
+                        </div>
+                        <button class="btn btn-success btn-sm mt-3" onclick="showAddProgramForm()">
+                            <i class="fas fa-plus"></i> เพิ่มโปรแกรมใหม่
+                        </button>
+                    </div>
+                    <div class="col-md-8">
+                        <div id="programPreview">
+                            <div class="text-center text-muted py-5">
+                                <i class="fas fa-code fa-3x mb-3"></i>
+                                <p>เลือกโปรแกรมเพื่อดูตัวอย่าง</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+                <button type="button" class="btn btn-primary" id="selectProgramBtn" onclick="selectProgram()" disabled>
+                    <i class="fas fa-check"></i> เลือกโปรแกรมนี้
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Program Modal -->
+<div class="modal fade" id="uploadProgramModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">อัพโหลดโปรแกรมไป ESP32</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>หมายเหตุ:</strong> ฟีเจอร์นี้จำเป็นต้องมีการตั้งค่า ESP32 OTA (Over-The-Air) Programming
+                </div>
+                
+                <div id="uploadDeviceInfo"></div>
+                
+                <div class="mb-3">
+                    <label class="form-label">เลือกวิธีอัพโหลด</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="uploadMethod" id="otaUpload" value="ota" checked>
+                        <label class="form-check-label" for="otaUpload">
+                            OTA (Over-The-Air) - อัพโหลดผ่าน WiFi
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="uploadMethod" id="serialUpload" value="serial">
+                        <label class="form-check-label" for="serialUpload">
+                            Serial - อัพโหลดผ่าน USB Cable
+                        </label>
+                    </div>
+                </div>
+
+                <div id="uploadProgress" style="display: none;">
+                    <div class="progress mb-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div id="uploadStatus"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="button" class="btn btn-warning" id="startUploadBtn" onclick="startUpload()">
+                    <i class="fas fa-upload"></i> เริ่มอัพโหลด
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentDeviceId = null;
+let selectedProgramId = null;
+let pinConfigCounter = 0;
+
+// Load page data
+$(document).ready(function() {
+    loadPrograms();
+});
+
+// Device Form Submission
+$('#deviceForm').on('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const isEdit = $('#editDeviceId').val() !== '';
+    
+    // Collect pin configurations
+    const pinConfig = {};
+    $('.pin-config-row').each(function() {
+        const name = $(this).find('.pin-name').val();
+        const pin = $(this).find('.pin-number').val();
+        const type = $(this).find('.pin-type').val();
+        const description = $(this).find('.pin-description').val();
+        
+        if (name && pin) {
+            pinConfig[name] = {
+                pin: parseInt(pin),
+                type: type,
+                description: description
+            };
+        }
+    });
+    
+    const deviceData = {
+        device_id: formData.get('device_id'),
+        device_name: formData.get('device_name'),
+        description: formData.get('description'),
+        location: formData.get('location'),
+        pin_config: pinConfig,
+        program_code: formData.get('program_code')
+    };
+    
+    const url = isEdit ? '/api/esp32/devices/' + $('#editDeviceId').val() : '/api/esp32/devices';
+    const method = isEdit ? 'PUT' : 'POST';
+    
+    $.ajax({
+        url: url,
+        method: method,
+        contentType: 'application/json',
+        data: JSON.stringify(deviceData),
+        success: function(response) {
+            if (response.status === 'success') {
+                showAlert('success', isEdit ? 'อัพเดท Device สำเร็จ' : 'เพิ่ม Device สำเร็จ');
+                $('#addDeviceModal').modal('hide');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showAlert('error', response.message);
+            }
+        },
+        error: function() {
+            showAlert('error', 'เกิดข้อผิดพลาด กรุณาลองใหม่');
+        }
+    });
+});
+
+// Add Pin Configuration
+function addPinConfig(name = '', pin = '', type = 'INPUT', description = '') {
+    pinConfigCounter++;
+    const html = `
+        <div class="pin-config-row border rounded p-3 mb-2">
+            <div class="row">
+                <div class="col-md-3">
+                    <label class="form-label">ชื่อขา</label>
+                    <input type="text" class="form-control pin-name" value="${name}" placeholder="เช่น LED, SENSOR">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">หมายเลขขา</label>
+                    <input type="number" class="form-control pin-number" value="${pin}" min="0" max="39">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">ประเภท</label>
+                    <select class="form-control pin-type">
+                        <option value="INPUT" ${type === 'INPUT' ? 'selected' : ''}>INPUT</option>
+                        <option value="OUTPUT" ${type === 'OUTPUT' ? 'selected' : ''}>OUTPUT</option>
+                        <option value="ANALOG" ${type === 'ANALOG' ? 'selected' : ''}>ANALOG</option>
+                        <option value="PWM" ${type === 'PWM' ? 'selected' : ''}>PWM</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">คำอธิบาย</label>
+                    <input type="text" class="form-control pin-description" value="${description}" placeholder="รายละเอียดการใช้งาน">
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="button" class="btn btn-danger btn-sm d-block" onclick="removePinConfig(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    $('#pinConfiguration').append(html);
+}
+
+// Remove Pin Configuration
+function removePinConfig(button) {
+    $(button).closest('.pin-config-row').remove();
+}
+
+// Edit Device
+function editDevice(deviceId) {
+    currentDeviceId = deviceId;
+    
+    $.get('/api/esp32/devices/' + deviceId, function(device) {
+        $('#deviceModalTitle').text('แก้ไข ESP32 Device');
+        $('#editDeviceId').val(device.device_id);
+        $('#deviceId').val(device.device_id).prop('readonly', true);
+        $('#deviceName').val(device.device_name);
+        $('#deviceDescription').val(device.description);
+        $('#deviceLocation').val(device.location);
+        $('#programCode').val(device.program_code || '');
+        
+        // Clear and load pin configurations
+        $('#pinConfiguration').empty();
+        if (device.pin_config) {
+            Object.keys(device.pin_config).forEach(name => {
+                const pin = device.pin_config[name];
+                addPinConfig(name, pin.pin, pin.type, pin.description);
+            });
+        }
+        
+        $('#addDeviceModal').modal('show');
+    }).fail(function() {
+        showAlert('error', 'ไม่สามารถโหลดข้อมูล Device ได้');
+    });
+}
+
+// Reset form when modal is closed
+$('#addDeviceModal').on('hidden.bs.modal', function() {
+    $('#deviceForm')[0].reset();
+    $('#deviceModalTitle').text('เพิ่ม ESP32 Device');
+    $('#editDeviceId').val('');
+    $('#deviceId').prop('readonly', false);
+    $('#pinConfiguration').empty();
+    pinConfigCounter = 0;
+});
+
+// Delete Device
+function deleteDevice(deviceId) {
+    if (confirm('คุณต้องการลบ Device นี้หรือไม่?')) {
+        $.ajax({
+            url: '/api/esp32/devices/' + deviceId,
+            method: 'DELETE',
+            success: function(response) {
+                if (response.status === 'success') {
+                    showAlert('success', 'ลบ Device สำเร็จ');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showAlert('error', response.message);
+                }
+            },
+            error: function() {
+                showAlert('error', 'เกิดข้อผิดพลาด กรุณาลองใหม่');
+            }
+        });
+    }
+}
+
+// Upload Program
+function uploadProgram(deviceId) {
+    currentDeviceId = deviceId;
+    
+    $.get('/api/esp32/devices/' + deviceId, function(device) {
+        $('#uploadDeviceInfo').html(`
+            <div class="card">
+                <div class="card-body">
+                    <h6><i class="fas fa-microchip"></i> ${device.device_name}</h6>
+                    <p class="text-muted mb-0">ID: ${device.device_id}</p>
+                    <p class="text-muted">โปรแกรมจะถูกอัพโหลดไปยัง Device นี้</p>
+                </div>
+            </div>
+        `);
+        
+        $('#uploadProgramModal').modal('show');
+    }).fail(function() {
+        showAlert('error', 'ไม่สามารถโหลดข้อมูล Device ได้');
+    });
+}
+
+// View Program
+function viewProgram(deviceId) {
+    $.get('/api/esp32/devices/' + deviceId, function(device) {
+        const code = device.program_code || '// ยังไม่มีโปรแกรม';
+        
+        const modalHtml = `
+            <div class="modal fade" id="viewProgramModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">โปรแกรมของ ${device.device_name}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <pre class="code-editor" style="height: 400px; overflow-y: auto;">${code}</pre>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove existing modal and add new one
+        $('#viewProgramModal').remove();
+        $('body').append(modalHtml);
+        $('#viewProgramModal').modal('show');
+    }).fail(function() {
+        showAlert('error', 'ไม่สามารถโหลดโปรแกรมได้');
+    });
+}
+
+// Start Upload
+function startUpload() {
+    const method = $('input[name="uploadMethod"]:checked').val();
+    
+    $('#uploadProgress').show();
+    $('#startUploadBtn').prop('disabled', true);
+    
+    // Simulate upload progress
+    let progress = 0;
+    const progressInterval = setInterval(function() {
+        progress += Math.random() * 15;
+        if (progress > 100) progress = 100;
+        
+        $('.progress-bar').css('width', progress + '%');
+        
+        if (progress < 30) {
+            $('#uploadStatus').text('กำลังเตรียมการอัพโหลด...');
+        } else if (progress < 60) {
+            $('#uploadStatus').text('กำลังคอมไพล์โค้ด...');
+        } else if (progress < 90) {
+            $('#uploadStatus').text('กำลังอัพโหลดไป ESP32...');
+        } else if (progress >= 100) {
+            $('#uploadStatus').text('อัพโหลดสำเร็จ!');
+            clearInterval(progressInterval);
+            
+            setTimeout(function() {
+                $('#uploadProgramModal').modal('hide');
+                $('#uploadProgress').hide();
+                $('#startUploadBtn').prop('disabled', false);
+                $('.progress-bar').css('width', '0%');
+                showAlert('success', 'อัพโหลดโปรแกรมสำเร็จ');
+            }, 1500);
+        }
+    }, 200);
+}
+
+// Program Library Functions
+function loadPrograms() {
+    $.get('/api/esp32/programs', function(programs) {
+        let html = '';
+        programs.forEach(function(program) {
+            html += `
+                <div class="program-card" onclick="selectProgramForPreview(${program.id})">
+                    <h6>${program.program_name}</h6>
+                    <small class="text-muted">v${program.version} | ${program.created_by}</small>
+                    <p class="mb-1">${program.description || 'ไม่มีคำอธิบาย'}</p>
+                    <small class="text-muted">${new Date(program.created_at).toLocaleDateString('th-TH')}</small>
+                </div>
+            `;
+        });
+        
+        if (html === '') {
+            html = '<p class="text-muted text-center">ยังไม่มีโปรแกรม</p>';
+        }
+        
+        $('#programList').html(html);
+    }).fail(function() {
+        $('#programList').html('<p class="text-danger">ไม่สามารถโหลดโปรแกรมได้</p>');
+    });
+}
+
+function selectProgramForPreview(programId) {
+    selectedProgramId = programId;
+    
+    // Update UI
+    $('.program-card').removeClass('selected');
+    $('.program-card').eq(programId - 1).addClass('selected');
+    $('#selectProgramBtn').prop('disabled', false);
+    
+    // Load program details
+    $.get('/api/esp32/programs/' + programId, function(program) {
+        const html = `
+            <div class="card">
+                <div class="card-header">
+                    <h6>${program.program_name} <span class="badge bg-info">v${program.version}</span></h6>
+                    <small class="text-muted">โดย ${program.created_by} | ${new Date(program.created_at).toLocaleDateString('th-TH')}</small>
+                </div>
+                <div class="card-body">
+                    <p>${program.description || 'ไม่มีคำอธิบาย'}</p>
+                    <pre class="code-editor" style="height: 300px; overflow-y: auto;">${program.program_code}</pre>
+                </div>
+            </div>
+        `;
+        $('#programPreview').html(html);
+    });
+}
+
+function selectProgram() {
+    if (!selectedProgramId) return;
+    
+    $.get('/api/esp32/programs/' + selectedProgramId, function(program) {
+        $('#programCode').val(program.program_code);
+        $('#programLibraryModal').modal('hide');
+        $('#addDeviceModal').modal('show');
+        showAlert('success', 'เลือกโปรแกรม "' + program.program_name + '" สำเร็จ');
+    }).fail(function() {
+        showAlert('error', 'ไม่สามารถโหลดโปรแกรมได้');
+    });
+}
+
+function showAddProgramForm() {
+    // This would open a form to add new program
+    // For now, just show an alert
+    showAlert('info', 'ฟีเจอร์เพิ่มโปรแกรมจะพัฒนาในเวอร์ชันต่อไป');
+}
+
+// Alert function
+function showAlert(type, message) {
+    const alertClass = type === 'success' ? 'alert-success' : 
+                      type === 'error' ? 'alert-danger' : 'alert-info';
+    
+    const alertHtml = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    $('.container').prepend(alertHtml);
+    
+    setTimeout(function() {
+        $('.alert').alert('close');
+    }, 5000);
+}
+</script>
+{% endblock %}

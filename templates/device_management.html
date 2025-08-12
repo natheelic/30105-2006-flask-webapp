@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+
+{% block title %}Device Management{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="header-section">
+        <h1><i class="fas fa-microchip"></i> Device Management</h1>
+        <p class="lead">จัดการ ESP32 และ Raspberry Pi Pico WH devices</p>
+        
+        <div class="action-buttons">
+            <a href="{{ url_for('add_device') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add New Device
+            </a>
+            <a href="{{ url_for('esp32') }}" class="btn btn-info">
+                <i class="fas fa-chart-line"></i> View Dashboard
+            </a>
+        </div>
+    </div>
+
+    {% if devices %}
+    <div class="devices-grid">
+        {% for device in devices %}
+        <div class="device-card">
+            <div class="device-header">
+                <h3>
+                    {% if device.device_type == 'ESP32' %}
+                        <i class="fab fa-raspberry-pi"></i>
+                    {% elif device.device_type == 'PICO_WH' %}
+                        <i class="fas fa-microchip"></i>
+                    {% else %}
+                        <i class="fas fa-cpu"></i>
+                    {% endif %}
+                    {{ device.device_name }}
+                </h3>
+                <span class="device-type-badge {{ device.device_type.lower() }}">
+                    {{ device.device_type }}
+                </span>
+            </div>
+            
+            <div class="device-info">
+                <p class="description">{{ device.description or 'No description' }}</p>
+                
+                <div class="device-specs">
+                    <div class="spec-item">
+                        <strong>WiFi:</strong> {{ device.wifi_ssid or 'Not configured' }}
+                    </div>
+                    <div class="spec-item">
+                        <strong>Template:</strong> {{ device.program_template }}
+                    </div>
+                    <div class="spec-item">
+                        <strong>Created:</strong> {{ device.created_at.strftime('%Y-%m-%d') if device.created_at else 'Unknown' }}
+                    </div>
+                </div>
+
+                {% if device.pin_config %}
+                <div class="pin-config">
+                    <h4>Pin Configuration:</h4>
+                    <div class="pins-grid">
+                        {% for pin_name, pin_value in device.pin_config.items() %}
+                        <div class="pin-item">
+                            <span class="pin-label">{{ pin_name.replace('_', ' ').title() }}:</span>
+                            <span class="pin-value">GPIO {{ pin_value }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if device.sensor_config %}
+                <div class="sensor-config">
+                    <h4>Sensors:</h4>
+                    <div class="sensors-list">
+                        {% for sensor_name, enabled in device.sensor_config.items() %}
+                        {% if enabled %}
+                        <span class="sensor-badge enabled">
+                            <i class="fas fa-check"></i>
+                            {{ sensor_name.replace('_enabled', '').replace('_', ' ').title() }}
+                        </span>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="device-actions">
+                <a href="{{ url_for('device_details', device_id=device.id) }}" 
+                   class="btn btn-primary btn-sm">
+                    <i class="fas fa-eye"></i> View Details
+                </a>
+                
+                <a href="{{ url_for('download_device_code', device_id=device.id) }}" 
+                   class="btn btn-success btn-sm">
+                    <i class="fas fa-download"></i> Download Code
+                </a>
+                
+                <a href="{{ url_for('download_uploader', device_id=device.id) }}" 
+                   class="btn btn-warning btn-sm">
+                    <i class="fas fa-upload"></i> Get Uploader
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Statistics -->
+    <div class="device-stats">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fab fa-raspberry-pi"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>{{ devices|selectattr('device_type', 'equalto', 'ESP32')|list|length }}</h3>
+                    <p>ESP32 Devices</p>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-microchip"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>{{ devices|selectattr('device_type', 'equalto', 'PICO_WH')|list|length }}</h3>
+                    <p>Pico WH Devices</p>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>{{ devices|length }}</h3>
+                    <p>Total Devices</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">
+            <i class="fas fa-microchip"></i>
+        </div>
+        <h3>No Devices Yet</h3>
+        <p>Start by adding your first ESP32 or Raspberry Pi Pico WH device.</p>
+        <a href="{{ url_for('add_device') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Your First Device
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.header-section {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding: 2rem 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px;
+    margin-bottom: 3rem;
+}
+
+.header-section h1 {
+    margin: 0;
+    font-size: 2.5rem;
+}
+
+.header-section .lead {
+    margin: 1rem 0;
+    font-size: 1.2rem;
+    opacity: 0.9;
+}
+
+.action-buttons {
+    margin-top: 1.5rem;
+}
+
+.action-buttons .btn {
+    margin: 0 0.5rem;
+}
+
+.devices-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+
+.device-card {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    border: 1px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.device-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.device-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #f8f9fa;
+}
+
+.device-header h3 {
+    margin: 0;
+    color: #333;
+}
+
+.device-type-badge {
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.device-type-badge.esp32 {
+    background-color: #e3f2fd;
+    color: #1976d2;
+}
+
+.device-type-badge.pico_wh {
+    background-color: #f3e5f5;
+    color: #7b1fa2;
+}
+
+.device-info {
+    margin-bottom: 1.5rem;
+}
+
+.description {
+    font-style: italic;
+    color: #666;
+    margin-bottom: 1rem;
+}
+
+.device-specs {
+    margin-bottom: 1rem;
+}
+
+.spec-item {
+    margin-bottom: 0.5rem;
+    color: #555;
+}
+
+.pin-config, .sensor-config {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+.pin-config h4, .sensor-config h4 {
+    margin: 0 0 0.5rem 0;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.pins-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.5rem;
+}
+
+.pin-item {
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+}
+
+.pin-label {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.pin-value {
+    font-weight: bold;
+    color: #333;
+}
+
+.sensors-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.sensor-badge {
+    padding: 0.3rem 0.6rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.sensor-badge.enabled {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.device-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    padding-top: 1rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.device-actions .btn {
+    flex: 1;
+    text-align: center;
+}
+
+.device-stats {
+    margin-top: 3rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 2rem;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    text-align: center;
+    border: 1px solid #e9ecef;
+}
+
+.stat-icon {
+    font-size: 3rem;
+    color: #667eea;
+    margin-bottom: 1rem;
+}
+
+.stat-info h3 {
+    font-size: 2.5rem;
+    margin: 0;
+    color: #333;
+}
+
+.stat-info p {
+    color: #666;
+    margin: 0.5rem 0 0 0;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+.empty-icon {
+    font-size: 4rem;
+    color: #ccc;
+    margin-bottom: 1rem;
+}
+
+.empty-state h3 {
+    color: #666;
+    margin-bottom: 1rem;
+}
+
+.empty-state p {
+    color: #999;
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+    .devices-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .header-section h1 {
+        font-size: 2rem;
+    }
+    
+    .device-actions {
+        flex-direction: column;
+    }
+    
+    .device-actions .btn {
+        margin-bottom: 0.5rem;
+    }
+}
+</style>
+{% endblock %}

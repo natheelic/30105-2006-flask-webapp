@@ -114,12 +114,15 @@
             <a href="{{ url_for('home') }}" class="logo">
                 <i class="fas fa-microchip"></i> IoT Dashboard
             </a>
-            <ul class="nav-links">
+                        <ul class="nav-links">
                 <li><a href="{{ url_for('home') }}" class="{{ 'active' if request.endpoint == 'home' }}">
                     <i class="fas fa-home"></i> Home
                 </a></li>
                 <li><a href="{{ url_for('esp32') }}" class="{{ 'active' if request.endpoint == 'esp32' }}">
                     <i class="fas fa-chart-line"></i> ESP32 Dashboard
+                </a></li>
+                <li><a href="{{ url_for('device_management') }}" class="{{ 'active' if request.endpoint in ['device_management', 'add_device', 'device_details'] }}">
+                    <i class="fas fa-microchip"></i> Device Management
                 </a></li>
                 <li><a href="{{ url_for('add_data') }}" class="{{ 'active' if request.endpoint == 'add_data' }}">
                     <i class="fas fa-plus"></i> Add Data
@@ -127,7 +130,7 @@
                 <li><a href="{{ url_for('about_me') }}" class="{{ 'active' if request.endpoint == 'about_me' }}">
                     <i class="fas fa-user"></i> About
                 </a></li>
-                <li><a href="/api/health" target="_blank">
+                <li><a href="/health" target="_blank">
                     <i class="fas fa-heartbeat"></i> Health
                 </a></li>
             </ul>
