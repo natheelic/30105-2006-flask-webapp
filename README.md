@@ -76,13 +76,6 @@ python3 app.py
 
 ## � **Database Configuration**
 
-### MySQL Connection Details:
-- **Host:** 61.19.114.86
-- **Port:** 54000
-- **Username:** nathee
-- **Password:** Root@1234
-- **Database:** iot_webapp
-
 ### Tables Created:
 - `esp32_data` - เก็บข้อมูล sensor จาก ESP32
 - `user_data` - เก็บข้อมูลจากฟอร์ม
